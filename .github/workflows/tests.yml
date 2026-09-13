@@ -1,63 +1,46 @@
 name: Tests
 
 on:
-  workflow_dispatch:
-
   push:
     branches:
       - main
-
   pull_request:
     branches:
       - main
 
   schedule:
-    - cron: '2,7,12,17,22,27,32,37,42,47,52,57 * * * *'
+    - cron: '*/5 * * * *'
 
 jobs:
   tests:
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         php-versions: ['7.4']
-
     name: integration-tests (PHP ${{ matrix.php-versions }})
-
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Debug trigger
-        run: |
-          echo "Event: ${{ github.event_name }}"
-          echo "Schedule: ${{ github.event.schedule }}"
-          echo "SHA: ${{ github.sha }}"
-          date -u
-
+      - uses: actions/checkout@v1
       - name: Install PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-versions }}
-
       - name: Validate composer.json and composer.lock
         run: composer validate
 
       - name: Get Composer Cache Directory
         id: composer-cache
         run: |
-          echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/cache@v4
+          echo "::set-output name=dir::$(composer config cache-files-dir)"
+      - uses: actions/cache@v2
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
-          key: ${{ runner.os }}-php-${{ matrix.php-versions }}-composer-${{ hashFiles('**/composer.lock') }}
+          key: ${{ runner.os }}-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-${{ hashFiles('**/composer.lock') }}
           restore-keys: |
-            ${{ runner.os }}-php-${{ matrix.php-versions }}-composer-
+            ${{ runner.os }}-${{ matrix.php-version }}-composer-${{ matrix.dependencies }}-
 
       - name: Install dependencies
         run: |
           composer update --prefer-dist --no-progress
-
       - name: Run script
         run: |
           php index.php
@@ -77,3 +60,7 @@ jobs:
           OCI_SSH_PUBLIC_KEY: ${{ secrets.OCI_SSH_PUBLIC_KEY }}
           TELEGRAM_USER_ID: ${{ secrets.TELEGRAM_USER_ID }}
           TELEGRAM_BOT_API_KEY: ${{ secrets.TELEGRAM_BOT_API_KEY }}
+          AD_ALWAYS_FREE: ${{ secrets.AD_ALWAYS_FREE }}
+          TEST_IMAGE_ID: ${{ secrets.TEST_IMAGE_ID }}
+          TEST_SUBNET_ID: ${{ secrets.TEST_SUBNET_ID }}
+
